@@ -1,0 +1,2224 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<!-- 在原有的CSS之后添加 -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Facebook广告数据统计系统</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+        }
+        
+        body {
+            background-color: #f5f6f8;
+            color: #333;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        /* 主容器 */
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            padding: 10px;
+        }
+        
+        /* 顶部汇总栏 */
+        .top-summary {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: white;
+            padding: 15px 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            margin-bottom: 10px;
+            flex-shrink: 0;
+        }
+        
+        .summary-stats {
+            display: flex;
+            gap: 30px;
+        }
+        
+        .stat-item {
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #1877f2;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: #65676b;
+        }
+        
+        .status-legend {
+            display: flex;
+            gap: 20px;
+            font-size: 13px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+        
+        .status-active {
+            background-color: #31a24c;
+        }
+        
+        .status-paused {
+            background-color: #f39c12;
+        }
+        
+        .status-deleted {
+            background-color: #e74c3c;
+        }
+        
+        /* 主要内容区域 */
+        .main-content {
+            display: flex;
+            flex-direction: column;
+            flex-grow: 1;
+            overflow: hidden;
+        }
+        
+        /* 上部分区域 */
+        .upper-section {
+            display: flex;
+            height: 60%;
+            gap: 10px;
+	    margin-bottom: 10px;
+            flex-shrink: 0;
+        }
+        
+        /* 下部分区域 */
+        .lower-section {
+            height: 40%;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            overflow: auto;
+            flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+        }
+        
+        /* A区和B区 */
+        .section-a, .section-b {
+            flex: 1;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            overflow: auto;
+            padding: 15px;
+        }
+        
+        .section-a {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* 广告架构区域样式 */
+        .campaign-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+ .btn {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .btn-primary {
+            background-color: #3b82f6;
+            color: #ffffff;
+        }
+
+        .btn-primary:hover {
+            background-color: #2563eb;
+        }
+
+        .btn-success {
+            background-color: #10b981;
+            color: #ffffff;
+            margin-left: 8px;
+        }
+
+        .btn-success:hover {
+            background-color: #059669;
+        }
+
+        .btn-sm {
+            padding: 3px 8px;
+            font-size: 12px;
+            border-radius: 4px;
+        }
+        
+        .file-input-wrapper {
+            position: relative;
+            display: inline-block;
+        }
+        
+        .file-input {
+            position: absolute;
+            left: 0;
+            top: 0;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+        
+        /* 广告架构树形结构 */
+        .campaign-tree {
+            flex-grow: 1;
+            overflow: auto;
+        }
+        
+        .tree-node {
+            margin-bottom: 5px;
+        }
+        
+        .node-header {
+            display: flex;
+            align-items: center;
+            padding: 2px 9px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .node-header:hover {
+            background-color: #f5f6f8;
+        }
+        
+        .node-header.active {
+            background-color: #e7f3ff;
+        }
+        
+        .toggle-btn {
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 8px;
+            cursor: pointer;
+            font-size: 8px;
+            color: #65676b;
+            flex-shrink: 0;
+        }
+        
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+            flex-shrink: 0;
+        }
+        
+.node-name {
+    font-size: 12px;
+    font-weight: 500;
+    flex-grow: 1;
+    cursor: default; /* 默认光标，双击后变为文本光标（contenteditable=true自动触发） */
+    padding: 2px 5px;
+    border-radius: 3px;
+    border: 1px dashed transparent; /* 保持布局稳定，避免编辑时位移 */
+}
+
+/* 仅编辑状态显示虚线边框 */
+.node-name.editable {
+    cursor: text;
+    border-color: #dadde1;
+    background-color: #fefcbf; /* 新增浅黄背景，强化编辑状态提示 */
+}
+        
+        .node-name.editable:hover {
+            border-color: #dadde1;
+        }
+        
+        .node-actions {
+            display: flex;
+            gap: 5px;
+            margin-left: 10px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        
+        .node-header:hover .node-actions {
+            opacity: 1;
+        }
+        
+        .node-action-btn {
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 3px;
+            background-color: transparent;
+            border: none;
+            cursor: pointer;
+            color: #65676b;
+            font-size: 12px;
+        }
+        
+        .node-action-btn:hover {
+            background-color: #e4e6eb;
+        }
+        
+        .children-container {
+            margin-left: 24px;
+            padding-left: 16px;
+        }
+        
+        /* 表格样式 */
+           table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+            color: #334155;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        th {
+            background-color: #eff6ff;
+            font-weight: 600;
+            text-align: center;
+            padding: 8px 4px;
+            border: 1px solid #e2e8f0;
+            white-space: nowrap;
+        }
+
+        td {
+            text-align: center;
+            padding: 8px 4px;
+            border: 1px solid #e2e8f0;
+            white-space: nowrap;
+        }
+
+        tbody tr {
+            transition: background-color 0.2s ease;
+        }
+
+        tbody tr:hover {
+            background-color: #f8fafc;
+        }
+
+        /* B区表格样式 */
+        .summary-row {
+            background-color: #f1f5f9 !important;
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .colspan-header {
+            text-align: center;
+            font-size: 13px;
+        }
+        
+        /* C区表格特定样式 */
+        .section-c-table .header-row-1 th {
+            background-color: #f0f7ff;
+        }
+        
+        .editable-cell {
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 3px;
+            transition: background-color 0.2s;
+        }
+        
+        .editable-cell:hover {
+            background-color: #e7f3ff;
+        }
+        
+.section-c-table td.editable {
+    background-color: #fefcbf !important;
+    cursor: pointer;
+}
+
+        /* 总初始窗口样式 */
+        .accounts-container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            padding: 20px;
+        }
+        
+        .accounts-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+        
+        .accounts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            overflow: auto;
+            flex-grow: 1;
+            padding: 10px 5px;
+        }
+        
+        .account-card {
+            background-color: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 3px 15px rgba(0, 0, 0, 0.05);
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            border: 2px solid transparent;
+        }
+        
+        .account-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+        }
+        
+        .account-card.active {
+            border-color: #1877f2;
+        }
+        
+        .account-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+        
+        .account-name {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+        
+        .account-remark {
+            font-size: 13px;
+            color: #65676b;
+            font-style: italic;
+        }
+        
+        .back-btn {
+            position: absolute;
+            top: 10px;
+            right: 20px;
+            z-index: 100;
+        }
+
+.btn-outline {
+    background-color: #ffffff;
+    color: #3b82f6;
+    border: 1px solid #3b82f6;
+}
+
+.btn-outline:hover {
+    background-color: #f0f7ff;
+    color: #2563eb;
+}
+
+/* 给统计页面预留顶部空间，避免返回按钮与top-summary重叠 */
+#statsPage {
+    position: relative; /* 让绝对定位的返回按钮以该容器为参考 */
+    padding-top: 40px; /* 预留顶部空间，容纳返回按钮 */
+}
+
+/* 保持top-summary原有样式不变，仅确保右侧对齐一致 */
+.top-summary {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: white;
+    padding: 15px 20px; /* 右侧20px与返回按钮的right:20px对齐 */
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    margin-bottom: 10px;
+    flex-shrink: 0;
+}
+        
+        /* 响应式调整 */
+        @media (max-width: 1200px) {
+            .upper-section {
+                flex-direction: column;
+                height: 70%;
+            }
+            
+            .section-a, .section-b {
+                flex: none;
+                height: 50%;
+            }
+            
+            .lower-section {
+                height: 30%;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .accounts-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .top-summary {
+                flex-direction: column;
+                gap: 15px;
+                align-items: flex-start;
+            }
+            
+            .summary-stats {
+                width: 100%;
+                justify-content: space-between;
+            }
+            
+            .status-legend {
+                width: 100%;
+                justify-content: space-between;
+            }
+        }
+        
+        /* 隐藏类 */
+        .hidden {
+            display: none !important;
+        }
+        
+        .collapsed {
+            display: none;
+        }
+        
+        /* 滚动条样式 */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #a8a8a8;
+        }
+    </style>
+</head>
+<body>
+    <!-- 总初始窗口 -->
+    <div id="accountsPage" class="container">
+        <div class="accounts-header">
+            <h1>Facebook广告账号管理</h1>
+            <button class="btn btn-primary" id="addAccountBtn">添加账号</button>
+        </div>
+        
+        <div class="top-summary">
+            <div class="summary-stats">
+                <div class="stat-item">
+                    <div class="stat-value" id="totalAccounts">0</div>
+                    <div class="stat-label">账号总数</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="activeAccounts">0</div>
+                    <div class="stat-label">投放中</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="pausedAccounts">0</div>
+                    <div class="stat-label">暂停投放</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="deletedAccounts">0</div>
+                    <div class="stat-label">已删除</div>
+                </div>
+            </div>
+            
+            <div class="status-legend">
+                <div class="legend-item">
+                    <div class="status-dot status-active"></div>
+                    <span>投放中</span>
+                </div>
+                <div class="legend-item">
+                    <div class="status-dot status-paused"></div>
+                    <span>暂停投放</span>
+                </div>
+                <div class="legend-item">
+                    <div class="status-dot status-deleted"></div>
+                    <span>已删除</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="accounts-grid" id="accountsGrid">
+            <!-- 账号卡片将通过JS动态生成 -->
+        </div>
+    </div>
+    
+    <!-- 广告数据统计页面 -->
+    <div id="statsPage" class="container hidden">
+        <button class="btn btn-outline back-btn" id="backToAccountsBtn">返回账号列表</button>
+        
+        <div class="top-summary">
+            <div class="summary-stats">
+                <div class="stat-item">
+                    <div class="stat-value" id="selectedAccountName">--</div>
+                    <div class="stat-label">当前账号</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="totalCampaigns">0</div>
+                    <div class="stat-label">广告系列</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="totalAdSets">0</div>
+                    <div class="stat-label">广告组</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="totalAds">0</div>
+                    <div class="stat-label">广告</div>
+                </div>
+            </div>
+            
+            <div class="status-legend">
+                <div class="legend-item">
+                    <div class="status-dot status-active"></div>
+                    <span>投放中</span>
+                </div>
+                <div class="legend-item">
+                    <div class="status-dot status-paused"></div>
+                    <span>暂停投放</span>
+                </div>
+                <div class="legend-item">
+                    <div class="status-dot status-deleted"></div>
+                    <span>已删除</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="main-content">
+            <div class="upper-section">
+                <!-- A区：广告架构概览区 -->
+                <div class="section-a">
+                    <div class="campaign-header">
+                        <h3>广告架构概览</h3>
+                        <div style="display: flex; gap: 10px;">
+                            <button class="btn btn-outline" id="addCampaignBtn">添加系列</button>
+                            <div class="file-input-wrapper">
+                                <button class="btn btn-success">导入数据</button>
+                                <input type="file" id="importDataFile" class="file-input" accept=".xlsx,.csv">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="campaign-tree" id="campaignTree">
+                        <!-- 广告架构树将通过JS动态生成 -->
+                    </div>
+                </div>
+                
+                <!-- B区：数据展示区 -->
+                <div class="section-b">
+                    <h3 style="margin-bottom: 15px;">广告数据详情</h3>
+                    <div style="overflow: auto;">
+                        <table class="data-table" id="dataTableB">
+                            <thead>
+                                <tr class="header-row-1">
+                        <th rowspan="2">时间</th>
+                        <th colspan="6" class="colspan-header">基础信息</th>
+                        <th colspan="2" class="colspan-header">购物车</th>
+                        <th colspan="2" class="colspan-header">下单</th>
+                        <th colspan="2" class="colspan-header">添加支付信息</th>
+                        <th colspan="2" class="colspan-header">付款</th>
+                        <th rowspan="2">性价比</th>
+                                </tr>
+                                <tr class="header-row-2">
+                                    <th class="budget-column">预算</th>
+                                    <th class="numeric-column">消耗</th>
+                                    <th class="numeric-column">点击</th>
+                                    <th class="numeric-column">CPM</th>
+                                    <th class="numeric-column">CPC</th>
+                                    <th class="numeric-column">CTR</th>
+                                    <th class="numeric-column">数量</th>
+                                    <th class="numeric-column">CPA</th>
+                                    <th class="numeric-column">数量</th>
+                                    <th class="numeric-column">CPA</th>
+                                    <th class="numeric-column">数量</th>
+                                    <th class="numeric-column">CPA</th>
+                                    <th class="numeric-column">数量</th>
+                                    <th class="numeric-column">CPA</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dataTableBodyB">
+                                <!-- 数据将通过JS动态生成 -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- C区：数据汇总区 -->
+            <div class="lower-section">
+                <h3 style="margin: 8px 8px 0 8px; padding-bottom: 8px; border-bottom: 1px solid #e2e8f0;">网站数据汇总</h3>
+    <div style="overflow: auto; padding: 0 15px 15px; flex-grow: 1;">
+        <table class="data-table section-c-table" id="dataTableC">
+                        <thead>
+                            <tr class="header-row-1">
+                                <th rowspan="2">日期</th>
+                                <th colspan="5">账号数据</th>
+                                <th colspan="12">网站销售数据</th>
+                            </tr>
+                            <tr class="header-row-2">
+                                <!-- 账号数据 -->
+                                <th class="numeric-column">预算</th>
+                                <th class="numeric-column">消耗</th>
+                                <th class="numeric-column">点击</th>
+                                <th class="numeric-column">跳IP</th>
+                                <th class="numeric-column">到站率</th>
+                                
+                                <!-- 网站销售数据 -->
+                                <th class="numeric-column">总IP</th>
+                                <th class="numeric-column">到购物车</th>
+                                <th class="numeric-column">总订单</th>
+                                <th class="numeric-column">下单率</th>
+                                <th class="numeric-column">付款</th>
+                                <th class="numeric-column">付款率</th>
+                                <th class="numeric-column">成功</th>
+                                <th class="numeric-column">成功率</th>
+                                <th class="numeric-column">转化率</th>
+                                <th class="numeric-column">均单</th>
+                                <th class="numeric-column">销售额</th>
+                                <th class="numeric-column">性价比</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dataTableBodyC">
+                            <!-- 数据将通过JS动态生成 -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 全局变量
+  (function() {
+        // ========== 全局变量和Supabase配置 ==========
+    let supabase;
+    try {
+        if (window.supabase && window.supabase.createClient) {
+            supabase = window.supabase.createClient(
+                'https://ermmupydqwluogcgwbew.supabase.co',
+                'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVybW11cHlkcXdsdW9nY2d3YmV3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk4MzY2NDcsImV4cCI6MjA4NTQxMjY0N30.hWH31IxNkZIndPj4k-ITlEehMWRnyS_7gUZ6KZXhrfM'
+            );
+            console.log('Supabase客户端初始化成功');
+        }
+    } catch (error) {
+        console.error('Supabase初始化失败:', error);
+        // 创建备用对象
+        supabase = {
+            from: () => ({ 
+                select: () => Promise.resolve({ data: [], error: null }),
+                upsert: () => Promise.resolve({ error: null }),
+                insert: () => Promise.resolve({ error: null })
+            })
+        };
+    }
+
+let currentAccountId = null;
+let accounts = [];
+let campaigns = [];
+let adSets = [];
+let ads = [];
+let adData = [];
+let websiteData = [];
+
+const FIELD_MAPPINGS = {
+    // JavaScript字段名 -> 数据库字段名
+    adId: 'ad_id',
+    accountId: 'account_id',
+    jumpIP: 'jump_ip',
+    totalIP: 'total_ip',
+    addsToCart: 'adds_to_cart',
+    addsPaymentInfo: 'adds_payment_info',
+    checkoutsInitiated: 'checkouts_initiated',
+    purchaseRoas: 'purchase_roas',
+    // 广告相关表映射
+    adSetId: 'ad_set_id',
+    campaignId: 'campaign_id',
+    createdAt: 'created_at',
+    // 反向映射（数据库 -> JavaScript）
+    'ad_id': 'adId',
+    'account_id': 'accountId',
+    'jump_ip': 'jumpIP',
+    'total_ip': 'totalIP',
+    'adds_to_cart': 'addsToCart',
+    'adds_payment_info': 'addsPaymentInfo',
+    'checkouts_initiated': 'checkoutsInitiated',
+    'purchase_roas': 'purchaseRoas',
+    'ad_set_id': 'adSetId',
+    'campaign_id': 'campaignId',
+    'created_at': 'createdAt' 
+};
+
+// 通用映射函数：JavaScript对象 -> 数据库对象
+function mapToDB(data) {
+    const result = {};
+    for (const [key, value] of Object.entries(data)) {
+        const dbKey = FIELD_MAPPINGS[key] || key;
+        result[dbKey] = value;
+    }
+    return result;
+}
+
+// 通用映射函数：数据库对象 -> JavaScript对象
+function mapFromDB(data) {
+    const result = {};
+    for (const [key, value] of Object.entries(data)) {
+        const jsKey = FIELD_MAPPINGS[key] || key;
+        result[jsKey] = value;
+    }
+    return result;
+}
+
+// 批量映射函数
+function batchMapFromDB(dataArray) {
+    return dataArray.map(item => mapFromDB(item));
+}
+
+function batchMapToDB(dataArray) {
+    return dataArray.map(item => mapToDB(item));
+}
+
+// ========== 核心函数定义 ==========
+
+// 从Supabase加载数据
+// 从Supabase加载数据（增加本地缓存兜底）
+async function loadDataFromStorage() {
+    console.log('正在初始化Supabase连接...');
+    
+    try {
+        // 测试Supabase连接
+        const { data, error } = await supabase
+            .from('fb_ad_accounts')
+            .select('count');
+        
+        if (error) {
+            console.error('Supabase连接失败，将使用本地缓存数据:', error);
+            // 从localStorage读取兜底数据
+            const localAccounts = localStorage.getItem('fb_ad_accounts');
+            if (localAccounts) {
+                accounts = JSON.parse(localAccounts);
+                console.log('从本地缓存加载账号数据成功');
+            }
+            // 其他数据同理（可选，这里优先保障账号显示）
+            return;
+        } else {
+            console.log('Supabase连接成功');
+        }
+        
+      const { data: accountsData, error: accountsError } = await supabase
+            .from('fb_ad_accounts')
+            .select('*')
+            .order('created_at', { ascending: false });
+        
+        if (!accountsError && accountsData) {
+            accounts = accountsData;
+            localStorage.setItem('fb_ad_accounts', JSON.stringify(accounts));
+        } else if (accountsError) {
+            console.error('加载账号数据错误，使用本地缓存:', accountsError);
+            const localAccounts = localStorage.getItem('fb_ad_accounts');
+            if (localAccounts) accounts = JSON.parse(localAccounts);
+        }
+        
+        // 加载广告系列（修复：更新本地数组+字段映射）
+        const { data: campaignsData, error: campaignsError } = await supabase
+            .from('fb_ad_campaigns')
+            .select('*');
+        
+        if (!campaignsError && campaignsData) {
+            campaigns = batchMapFromDB(campaignsData); // 字段映射
+            localStorage.setItem('fb_ad_campaigns', JSON.stringify(campaignsData)); // 缓存原始数据
+        } else {
+            const localCampaigns = localStorage.getItem('fb_ad_campaigns');
+            if (localCampaigns) campaigns = batchMapFromDB(JSON.parse(localCampaigns));
+        }
+        
+        // 加载广告组（修复：更新本地数组+字段映射）
+        const { data: adSetsData, error: adSetsError } = await supabase
+            .from('fb_ad_ad_sets')
+            .select('*');
+        
+        if (!adSetsError && adSetsData) {
+            adSets = batchMapFromDB(adSetsData); // 字段映射
+            localStorage.setItem('fb_ad_ad_sets', JSON.stringify(adSetsData));
+        } else {
+            const localAdSets = localStorage.getItem('fb_ad_ad_sets');
+            if (localAdSets) adSets = batchMapFromDB(JSON.parse(localAdSets));
+        }
+        
+        // 加载广告（修复：更新本地数组+字段映射）
+        const { data: adsData, error: adsError } = await supabase
+            .from('fb_ad_ads')
+            .select('*');
+        
+        if (!adsError && adsData) {
+            ads = batchMapFromDB(adsData); // 字段映射
+            localStorage.setItem('fb_ad_ads', JSON.stringify(adsData));
+        } else {
+            const localAds = localStorage.getItem('fb_ad_ads');
+            if (localAds) ads = batchMapFromDB(JSON.parse(localAds));
+        }
+        
+        // 加载广告详情数据
+        const { data: adDataResult, error: adDataError } = await supabase
+            .from('fb_ad_data')
+            .select('*');
+        
+        if (!adDataError && adDataResult) {
+            adData = batchMapFromDB(adDataResult);
+            localStorage.setItem('fb_ad_data', JSON.stringify(adDataResult));
+        } else {
+            const localAdData = localStorage.getItem('fb_ad_data');
+            if (localAdData) adData = batchMapFromDB(JSON.parse(localAdData));
+        }
+        
+        // 加载网站数据
+        const { data: websiteDataResult, error: websiteDataError } = await supabase
+            .from('fb_ad_website_data')
+            .select('*');
+        
+        if (!websiteDataError && websiteDataResult) {
+            websiteData = batchMapFromDB(websiteDataResult);
+            localStorage.setItem('fb_ad_website_data', JSON.stringify(websiteDataResult));
+        } else {
+            const localWebsiteData = localStorage.getItem('fb_ad_website_data');
+            if (localWebsiteData) websiteData = batchMapFromDB(JSON.parse(localWebsiteData));
+        }
+        
+    } catch (error) {
+        console.error('加载数据失败，使用本地缓存:', error);
+        // 最终兜底
+        const localAccounts = localStorage.getItem('fb_ad_accounts');
+        const localCampaigns = localStorage.getItem('fb_ad_campaigns');
+        const localAdSets = localStorage.getItem('fb_ad_ad_sets');
+        const localAds = localStorage.getItem('fb_ad_ads');
+        
+        if (localAccounts) accounts = JSON.parse(localAccounts);
+        if (localCampaigns) campaigns = batchMapFromDB(JSON.parse(localCampaigns));
+        if (localAdSets) adSets = batchMapFromDB(JSON.parse(localAdSets));
+        if (localAds) ads = batchMapFromDB(JSON.parse(localAds));
+    }
+}
+// 保存账号数据到Supabase
+// 保存账号数据到Supabase（同步更新本地缓存）
+async function saveAccountsToStorage() {
+    try {
+        for (const account of accounts) {
+            const { error } = await supabase
+                .from('fb_ad_accounts')
+                .upsert(account);
+            
+            if (error) {
+                console.error('保存账号失败:', error);
+            }
+        }
+        // 同步更新本地缓存（关键：保证缓存数据最新）
+        localStorage.setItem('fb_ad_accounts', JSON.stringify(accounts));
+        console.log('账号数据已同步到本地缓存');
+    } catch (error) {
+        console.error('保存账号数据失败，仅更新本地缓存:', error);
+        localStorage.setItem('fb_ad_accounts', JSON.stringify(accounts));
+    }
+}
+// 保存广告数据到Supabase
+async function saveAdDataToStorage() {
+    console.log('开始保存广告数据到数据库...');
+    
+    try {
+        // 保存广告系列
+        for (const campaign of campaigns) {
+            const dbCampaign = mapToDB(campaign);
+            const { error } = await supabase
+                .from('fb_ad_campaigns')
+                .upsert(dbCampaign);
+            
+            if (error) {
+                console.error('保存广告系列失败:', error);
+            }
+        }
+        
+        // 保存广告组
+        for (const adSet of adSets) {
+            const dbAdSet = mapToDB(adSet);
+            const { error } = await supabase
+                .from('fb_ad_ad_sets')
+                .upsert(dbAdSet);
+            
+            if (error) {
+                console.error('保存广告组失败:', error);
+            }
+        }
+        
+        // 保存广告
+        for (const ad of ads) {
+            const dbAd = mapToDB(ad);
+            const { error } = await supabase
+                .from('fb_ad_ads')
+                .upsert(dbAd);
+            
+            if (error) {
+                console.error('保存广告失败:', error);
+            }
+        }
+        
+        // 保存广告详情数据
+        for (const data of adData) {
+            const dbData = mapToDB(data);
+            const { error } = await supabase
+                .from('fb_ad_data')
+                .upsert(dbData);
+            
+            if (error) {
+                console.error('保存广告详情数据失败:', error);
+            }
+        }
+        
+        // 保存网站数据
+        for (const webData of websiteData) {
+            const dbWebData = mapToDB(webData);
+            const { error } = await supabase
+                .from('fb_ad_website_data')
+                .upsert(dbWebData);
+            
+            if (error) {
+                console.error('保存网站数据失败:', error);
+            }
+        }
+        
+        console.log('广告数据保存完成');
+    } catch (error) {
+        console.error('保存广告数据失败:', error);
+    }
+}
+
+// 添加新账号
+async function addNewAccount() {
+    console.log('添加账号按钮被点击');
+    try {
+        const newAccount = {
+            id: 'acc_' + Date.now(),
+            name: '新增账号',
+            status: 'active',
+            remark: '',
+            created_at: new Date().toISOString()
+        };
+        
+        console.log('新账号对象:', newAccount);
+        
+        // 保存到本地数组
+        accounts.push(newAccount);
+        
+        // 保存到Supabase
+        const { error } = await supabase
+            .from('fb_ad_accounts')
+            .insert([newAccount]);
+        
+        if (error) {
+            console.error('添加账号失败:', error);
+            alert('添加账号失败，请检查控制台');
+            // 如果保存到数据库失败，从本地数组中移除
+            const index = accounts.findIndex(acc => acc.id === newAccount.id);
+            if (index > -1) {
+                accounts.splice(index, 1);
+            }
+            return;
+        }
+        
+        console.log('账号添加成功，重新渲染页面');
+        // 重新渲染账号页面
+        renderAccountsPage();
+        
+    } catch (error) {
+        console.error('添加账号异常:', error);
+        alert('添加账号时发生异常: ' + error.message);
+    }
+}
+
+// 渲染账号页面
+function renderAccountsPage() {
+    const accountsGrid = document.getElementById('accountsGrid');
+    accountsGrid.innerHTML = '';
+    
+    // 排序：active -> paused -> deleted
+    const sortedAccounts = [...accounts].sort((a, b) => {
+        const statusOrder = { active: 1, paused: 2, deleted: 3 };
+        return statusOrder[a.status] - statusOrder[b.status];
+    });
+    
+    sortedAccounts.forEach(account => {
+        const accountCard = document.createElement('div');
+        accountCard.className = 'account-card';
+        accountCard.dataset.accountId = account.id;
+        
+        let statusClass = '';
+        let statusText = '';
+        
+        switch(account.status) {
+            case 'active':
+                statusClass = 'status-active';
+                statusText = '投放中';
+                break;
+            case 'paused':
+                statusClass = 'status-paused';
+                statusText = '暂停投放';
+                break;
+            case 'deleted':
+                statusClass = 'status-deleted';
+                statusText = '已删除';
+                break;
+        }
+        
+        accountCard.innerHTML = `
+            <div class="account-status">
+                <div class="status-dot ${statusClass}"></div>
+                <span>${statusText}</span>
+            </div>
+            <div class="account-name" contenteditable="true" onblur="updateAccountName('${account.id}', this.textContent)">${account.name}</div>
+            <div class="account-remark" contenteditable="true" onblur="updateAccountRemark('${account.id}', this.textContent)">${account.remark || '点击添加备注'}</div>
+            <div style="display: flex; gap: 10px; margin-top: 15px;">
+                <button class="btn btn-outline" style="font-size: 12px; padding: 5px 10px;" onclick="changeAccountStatus('${account.id}', 'active')">投放中</button>
+                <button class="btn btn-outline" style="font-size: 12px; padding: 5px 10px;" onclick="changeAccountStatus('${account.id}', 'paused')">暂停</button>
+                <button class="btn btn-outline" style="font-size: 12px; padding: 5px 10px;" onclick="changeAccountStatus('${account.id}', 'deleted')">删除</button>
+            </div>
+        `;
+        
+        accountCard.addEventListener('click', (e) => {
+            if (!e.target.closest('button') && !e.target.closest('[contenteditable="true"]')) {
+                showStatsPage(account.id);
+            }
+        });
+        
+        accountsGrid.appendChild(accountCard);
+    });
+    
+    // 更新汇总统计
+    updateAccountsSummary();
+}
+
+// 更新账号名称
+async function updateAccountName(accountId, newName) {
+    const account = accounts.find(a => a.id === accountId);
+    if (account) {
+        account.name = newName || '未命名账号';
+        await saveAccountsToStorage();
+        updateAccountsSummary();
+    }
+}
+
+// 更新账号备注
+async function updateAccountRemark(accountId, newRemark) {
+    const account = accounts.find(a => a.id === accountId);
+    if (account) {
+        account.remark = newRemark;
+        await saveAccountsToStorage();
+    }
+}
+
+// 更改账号状态
+async function changeAccountStatus(accountId, newStatus) {
+    const account = accounts.find(a => a.id === accountId);
+    if (account) {
+        account.status = newStatus;
+        await saveAccountsToStorage();
+        renderAccountsPage();
+    }
+}
+
+// 更新账号汇总统计
+function updateAccountsSummary() {
+    const totalAccounts = accounts.length;
+    const activeAccounts = accounts.filter(a => a.status === 'active').length;
+    const pausedAccounts = accounts.filter(a => a.status === 'paused').length;
+    const deletedAccounts = accounts.filter(a => a.status === 'deleted').length;
+    
+    document.getElementById('totalAccounts').textContent = totalAccounts;
+    document.getElementById('activeAccounts').textContent = activeAccounts;
+    document.getElementById('pausedAccounts').textContent = pausedAccounts;
+    document.getElementById('deletedAccounts').textContent = deletedAccounts;
+}
+
+// 显示账号页面
+function showAccountsPage() {
+    document.getElementById('accountsPage').classList.remove('hidden');
+    document.getElementById('statsPage').classList.add('hidden');
+    renderAccountsPage();
+}
+
+// 显示统计数据页面
+function showStatsPage(accountId) {
+    currentAccountId = accountId;
+    
+    // 更新页面标题
+    const account = accounts.find(a => a.id === accountId);
+    document.getElementById('selectedAccountName').textContent = account ? account.name : '未知账号';
+    
+    // 渲染广告架构
+    renderCampaignTree();
+    
+    // 更新汇总统计
+    updateCampaignsSummary();
+    
+    // 显示页面
+    document.getElementById('accountsPage').classList.add('hidden');
+    document.getElementById('statsPage').classList.remove('hidden');
+}
+
+// 渲染广告架构树
+function renderCampaignTree() {
+    const campaignTree = document.getElementById('campaignTree');
+    campaignTree.innerHTML = '';
+    
+    // 获取当前账号的广告系列
+    const accountCampaigns = campaigns.filter(c => c.accountId === currentAccountId);
+    
+    // 排序：active -> paused -> deleted
+    const sortedCampaigns = [...accountCampaigns].sort((a, b) => {
+        const statusOrder = { active: 1, paused: 2, deleted: 3 };
+        return statusOrder[a.status] - statusOrder[b.status];
+    });
+    
+    if (sortedCampaigns.length === 0) {
+        campaignTree.innerHTML = '<div style="text-align: center; padding: 40px; color: #999;">暂无广告系列，点击"添加系列"按钮创建</div>';
+        return;
+    }
+    
+    sortedCampaigns.forEach(campaign => {
+        // 获取该系列下的广告组
+        const campaignAdSets = adSets.filter(adset => adset.campaignId === campaign.id);
+        
+        const campaignNode = createTreeNode(campaign, 'campaign', campaignAdSets);
+        campaignTree.appendChild(campaignNode);
+    });
+}
+
+// 创建树节点（纯 DOM 构建，保留事件绑定）
+function createTreeNode(item, type, children = []) {
+    const node = document.createElement('div');
+    node.className = 'tree-node';
+    node.dataset.id = item.id;
+    node.dataset.type = type;
+
+    let statusClass = '';
+    switch (item.status) {
+        case 'active': statusClass = 'status-active'; break;
+        case 'paused': statusClass = 'status-paused'; break;
+        case 'deleted': statusClass = 'status-deleted'; break;
+    }
+
+    // 确定子项
+    let childItems = [];
+    if (type === 'campaign') {
+        childItems = children;
+    } else if (type === 'adset') {
+        childItems = ads.filter(ad => ad.adSetId === item.id);
+    }
+
+    const hasChildren = childItems.length > 0;
+    const isCollapsed = item.collapsed || false;
+
+    // 创建 node-header
+    const headerDiv = document.createElement('div');
+    headerDiv.className = 'node-header';
+
+    // toggle 按钮
+    const toggleBtn = document.createElement('div');
+    toggleBtn.className = 'toggle-btn';
+    toggleBtn.onclick = (e) => {
+        e.stopPropagation();
+        toggleTreeNode(item.id, type);
+    };
+    toggleBtn.textContent = hasChildren ? (isCollapsed ? '▶' : '▼') : '';
+    headerDiv.appendChild(toggleBtn);
+
+    // 状态指示器
+    const statusDiv = document.createElement('div');
+    statusDiv.className = `status-indicator ${statusClass}`;
+    headerDiv.appendChild(statusDiv);
+
+    // 节点名称（可编辑）
+    const nameDiv = document.createElement('div');
+    nameDiv.className = 'node-name';
+    nameDiv.dataset.id = item.id;
+    nameDiv.dataset.type = type;
+    nameDiv.textContent = item.name;
+    nameDiv.ondblclick = (e) => {
+        e.stopPropagation();
+        startEditNodeName(nameDiv);
+    };
+    headerDiv.appendChild(nameDiv);
+
+    // 操作按钮
+    const actionsDiv = document.createElement('div');
+    actionsDiv.className = 'node-actions';
+    const addBtn = document.createElement('button');
+    addBtn.className = 'node-action-btn';
+    addBtn.textContent = '+';
+    addBtn.title = `添加${type === 'campaign' ? '广告组' : '广告'}`;
+    addBtn.onclick = (e) => {
+        e.stopPropagation();
+        addChildNode(item.id, type);
+    };
+    actionsDiv.appendChild(addBtn);
+
+    const activeBtn = document.createElement('button');
+    activeBtn.className = 'node-action-btn';
+    activeBtn.textContent = '●';
+    activeBtn.title = '设为投放中';
+    activeBtn.onclick = (e) => {
+        e.stopPropagation();
+        changeNodeStatus(item.id, type, 'active');
+    };
+    actionsDiv.appendChild(activeBtn);
+
+    const pauseBtn = document.createElement('button');
+    pauseBtn.className = 'node-action-btn';
+    pauseBtn.textContent = '❚❚';
+    pauseBtn.title = '暂停';
+    pauseBtn.onclick = (e) => {
+        e.stopPropagation();
+        changeNodeStatus(item.id, type, 'paused');
+    };
+    actionsDiv.appendChild(pauseBtn);
+
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'node-action-btn';
+    deleteBtn.textContent = '×';
+    deleteBtn.title = '删除';
+    deleteBtn.onclick = (e) => {
+        e.stopPropagation();
+        changeNodeStatus(item.id, type, 'deleted');
+    };
+    actionsDiv.appendChild(deleteBtn);
+
+    headerDiv.appendChild(actionsDiv);
+
+    // 节点头部点击事件（显示数据）
+    headerDiv.addEventListener('click', (e) => {
+        if (!e.target.closest('.node-actions') &&
+            !e.target.closest('.toggle-btn') &&
+            !e.target.closest('.node-name.editable')) {
+            showDataForNode(item.id, type);
+        }
+    });
+
+    node.appendChild(headerDiv);
+
+    // 子节点容器
+    const childrenContainer = document.createElement('div');
+    childrenContainer.className = `children-container ${isCollapsed ? 'collapsed' : ''}`;
+
+    if (hasChildren) {
+        childItems.forEach(child => {
+            let childNode;
+            if (type === 'campaign') {
+                const childAds = ads.filter(ad => ad.adSetId === child.id);
+                childNode = createTreeNode(child, 'adset', childAds);
+            } else if (type === 'adset') {
+                childNode = createTreeNode(child, 'ad');
+            } else {
+                // 广告节点无子节点
+                childNode = createTreeNode(child, 'ad');
+            }
+            childrenContainer.appendChild(childNode);
+        });
+    }
+
+    node.appendChild(childrenContainer);
+
+    return node;
+}
+// 切换树节点展开/折叠
+function toggleTreeNode(id, type) {
+    let item;
+    if (type === 'campaign') {
+        item = campaigns.find(c => c.id === id);
+    } else if (type === 'adset') {
+        item = adSets.find(a => a.id === id);
+    } else {
+        return;
+    }
+    
+    if (item) {
+        item.collapsed = !item.collapsed;
+        saveAdDataToStorage();
+        renderCampaignTree();
+    }
+}
+
+// 更新节点名称
+async function updateNodeName(id, type, newName) {
+    let item;
+    if (type === 'campaign') {
+        item = campaigns.find(c => c.id === id);
+    } else if (type === 'adset') {
+        item = adSets.find(a => a.id === id);
+    } else if (type === 'ad') {
+        item = ads.find(a => a.id === id);
+    }
+    
+    if (item) {
+        item.name = newName || (type === 'campaign' ? '未命名系列' : type === 'adset' ? '未命名广告组' : '未命名广告');
+        await saveAdDataToStorage();
+        updateCampaignsSummary();
+    }
+}
+
+// 双击开启节点名称编辑
+function startEditNodeName(element) {
+    // 1. 阻止事件冒泡，避免触发节点选中、折叠等其他事件
+    event.stopPropagation();
+    
+    // 2. 开启可编辑状态，添加样式反馈
+    element.contentEditable = true;
+    element.classList.add('editable');
+    
+    // 3. 聚焦元素，选中现有文本（提升用户体验）
+    element.focus();
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(element);
+    selection.removeAllRanges();
+    selection.addRange(range);
+    
+    // 4. 绑定编辑完成事件（失去焦点/按Enter键）
+    element.addEventListener('blur', () => finishEditNodeName(element));
+    element.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault(); // 阻止回车换行
+            finishEditNodeName(element);
+        }
+    });
+}
+
+// 完成节点名称编辑，保存结果
+function finishEditNodeName(element) {
+    // 1. 获取节点信息和新名称
+    const nodeId = element.dataset.id;
+    const nodeType = element.dataset.type;
+    const newName = element.textContent.trim() || (
+        nodeType === 'campaign' ? '未命名系列' : 
+        nodeType === 'adset' ? '未命名广告组' : '未命名广告'
+    );
+    
+    // 2. 关闭可编辑状态，移除样式反馈
+    element.contentEditable = false;
+    element.classList.remove('editable');
+    
+    // 3. 调用原有函数更新名称并保存
+    updateNodeName(nodeId, nodeType, newName);
+    
+    // 4. 移除事件监听（避免重复绑定）
+    element.removeEventListener('blur', () => finishEditNodeName(element));
+}
+
+// 更改节点状态
+async function changeNodeStatus(id, type, newStatus) {
+    let item;
+    let childItems = [];
+    
+    if (type === 'campaign') {
+        item = campaigns.find(c => c.id === id);
+        // 获取该系列下的所有广告组和广告
+        childItems = [
+            ...adSets.filter(adset => adset.campaignId === id),
+            ...ads.filter(ad => {
+                const adset = adSets.find(as => as.id === ad.adSetId);
+                return adset && adset.campaignId === id;
+            })
+        ];
+    } else if (type === 'adset') {
+        item = adSets.find(a => a.id === id);
+        // 获取该广告组下的所有广告
+        childItems = ads.filter(ad => ad.adSetId === id);
+    } else if (type === 'ad') {
+        item = ads.find(a => a.id === id);
+    }
+    
+    if (item) {
+        item.status = newStatus;
+        
+        // 更新子项状态（如果父项状态改变）
+        childItems.forEach(child => {
+            child.status = newStatus;
+        });
+        
+        await saveAdDataToStorage();
+        renderCampaignTree();
+        updateCampaignsSummary();
+        
+        // 如果当前正在显示该节点的数据，刷新B区
+        const activeNode = document.querySelector('.node-header.active');
+        if (activeNode && activeNode.closest('.tree-node').dataset.id === id) {
+            showDataForNode(id, type);
+        }
+    }
+}
+
+// 添加子节点
+async function addChildNode(parentId, parentType) {
+    if (parentType === 'campaign') {
+        // 添加广告组
+        const newAdSet = {
+            id: 'adset_' + Date.now(),
+            campaignId: parentId,
+            name: '新广告组',
+            status: 'active',
+            createdAt: new Date().toISOString()
+        };
+        
+                const dbNewAdSet = mapToDB(newAdSet);
+        // 3. 插入数据库（使用转换后的字段名）
+        await supabase.from('fb_ad_ad_sets').insert([dbNewAdSet]);
+        adSets.push(newAdSet);
+    } else if (parentType === 'adset') {
+        // 添加广告
+        const newAd = {
+            id: 'ad_' + Date.now(),
+            adSetId: parentId,
+            name: '新广告',
+            status: 'active',
+            createdAt: new Date().toISOString()
+        };
+        
+      const dbNewAd = mapToDB(newAd); // 转换为ad_set_id
+        await supabase.from('fb_ad_ads').insert([dbNewAd]);
+        ads.push(newAd);
+    }
+    
+    await saveAdDataToStorage();
+    renderCampaignTree();
+    updateCampaignsSummary();
+}
+
+// 添加新广告系列
+async function addNewCampaign() {
+    const newCampaign = {
+        id: 'camp_' + Date.now(),
+        accountId: currentAccountId,
+        name: '新广告系列',
+        status: 'active',
+        createdAt: new Date().toISOString()
+    };
+    
+    campaigns.push(newCampaign);
+    await saveAdDataToStorage();
+    renderCampaignTree();
+    updateCampaignsSummary();
+}
+
+// 更新广告架构汇总统计
+function updateCampaignsSummary() {
+    const accountCampaigns = campaigns.filter(c => c.accountId === currentAccountId);
+    const accountAdSets = adSets.filter(as => {
+        const campaign = campaigns.find(c => c.id === as.campaignId);
+        return campaign && campaign.accountId === currentAccountId;
+    });
+    const accountAds = ads.filter(ad => {
+        const adSet = adSets.find(as => as.id === ad.adSetId);
+        if (!adSet) return false;
+        const campaign = campaigns.find(c => c.id === adSet.campaignId);
+        return campaign && campaign.accountId === currentAccountId;
+    });
+    
+    document.getElementById('totalCampaigns').textContent = accountCampaigns.length;
+    document.getElementById('totalAdSets').textContent = accountAdSets.length;
+    document.getElementById('totalAds').textContent = accountAds.length;
+}
+
+// 在B区显示节点数据
+// 1. 修复showDataForNode函数（核心筛选逻辑）
+function showDataForNode(nodeId, nodeType) {
+    // 移除之前选中的节点
+    document.querySelectorAll('.node-header.active').forEach(el => {
+        el.classList.remove('active');
+    });
+    
+    // 标记当前选中的节点
+    const nodeHeader = document.querySelector(`.tree-node[data-id="${nodeId}"] .node-header`);
+    if (nodeHeader) {
+        nodeHeader.classList.add('active');
+    }
+    
+    console.log('筛选条件:', {nodeId, nodeType});
+    console.log('adData数据总量:', adData.length);
+    
+    // 修复：统一字段名（将ad_id转换为adId，保证筛选一致性）
+    const normalizedAdData = adData.map(item => {
+        return {
+            ...item,
+            adId: item.adId || item.ad_id, // 统一使用adId作为标准字段
+            date: item.date || item.reporting_starts, // 兼容不同的日期字段名
+            addsToCart: item.addsToCart || item.adds_to_cart || 0,
+            checkoutsInitiated: item.checkoutsInitiated || item.checkouts_initiated || 0,
+            addsPaymentInfo: item.addsPaymentInfo || item.adds_payment_info || 0
+        };
+    });
+    
+    let dataToShow = [];
+    
+    if (nodeType === 'ad') {
+        // 单个广告的数据：直接筛选
+        dataToShow = normalizedAdData.filter(d => d.adId === nodeId);
+        console.log('广告数据筛选结果:', dataToShow);
+    } else if (nodeType === 'adset') {
+        // 广告组的数据：获取该广告组下的所有广告ID
+        const adIds = ads.filter(ad => ad.adSetId === nodeId).map(ad => ad.id);
+        console.log('广告组下的广告ID:', adIds);
+        // 筛选该广告组下所有广告的数据
+        const adSetData = normalizedAdData.filter(d => adIds.includes(d.adId));
+        console.log('广告组原始数据:', adSetData);
+        
+        // 按日期汇总
+        const dateMap = new Map();
+        adSetData.forEach(item => {
+            if (!item.date) return;
+            if (!dateMap.has(item.date)) {
+                dateMap.set(item.date, []);
+            }
+            dateMap.get(item.date).push(item);
+        });
+        
+        // 生成汇总数据（补充date字段）
+        dataToShow = Array.from(dateMap.entries()).map(([date, items]) => {
+            const agg = aggregateAdData(items);
+            return { ...agg, date }; // 关键：补充date字段
+        });
+    } else if (nodeType === 'campaign') {
+        // 广告系列的数据：获取该系列下的所有广告ID
+        const adSetIds = adSets.filter(as => as.campaignId === nodeId).map(as => as.id);
+        const adIds = ads.filter(ad => adSetIds.includes(ad.adSetId)).map(ad => ad.id);
+        console.log('广告系列下的广告ID:', adIds);
+        
+        // 筛选该系列下所有广告的数据
+        const campaignData = normalizedAdData.filter(d => adIds.includes(d.adId));
+        console.log('广告系列原始数据:', campaignData);
+        
+        // 按日期汇总
+        const dateMap = new Map();
+        campaignData.forEach(item => {
+            if (!item.date) return;
+            if (!dateMap.has(item.date)) {
+                dateMap.set(item.date, []);
+            }
+            dateMap.get(item.date).push(item);
+        });
+        
+        // 生成汇总数据（补充date字段）
+        dataToShow = Array.from(dateMap.entries()).map(([date, items]) => {
+            const agg = aggregateAdData(items);
+            return { ...agg, date }; // 关键：补充date字段
+        });
+    }
+    
+    console.log('最终渲染数据:', dataToShow);
+   dataToShow.sort((a, b) => {
+        if (!a.date) return 1;   // 无日期的排最后
+        if (!b.date) return -1;
+        return new Date(b.date) - new Date(a.date);
+    });
+    // 渲染B区表格
+    renderDataTableB(dataToShow);
+    
+    // 同时更新C区数据
+    updateSectionC();
+}
+
+// 2. 修复aggregateAdData函数（补充必要字段）
+function aggregateAdData(adDataArray) {
+    const result = {
+        budget: 0,
+        spent: 0,
+        clicks: 0,
+        impressions: 0,
+        cpm: 0,
+        cpc: 0,
+        ctr: 0,
+        addsToCart: 0,
+        checkoutsInitiated: 0,
+        addsPaymentInfo: 0,
+        purchases: 0,
+        purchaseRoas: 0
+    };
+    
+    adDataArray.forEach(data => {
+        result.budget += data.budget || 0;
+        result.spent += data.spent || 0;
+        result.clicks += data.clicks || 0;
+        result.impressions += data.impressions || 0;
+        result.addsToCart += data.adds_to_cart || data.addsToCart || 0;
+        result.checkoutsInitiated += data.checkouts_initiated || data.checkoutsInitiated || 0;
+        result.addsPaymentInfo += data.adds_payment_info || data.addsPaymentInfo || 0;
+        result.purchases += data.purchases || 0;
+    });
+    
+    // 计算平均值（修复除以0的情况）
+    result.cpm = result.impressions > 0 ? (result.spent / result.impressions) * 1000 : 0;
+    result.cpc = result.clicks > 0 ? result.spent / result.clicks : 0;
+    result.ctr = result.impressions > 0 ? (result.clicks / result.impressions) * 100 : 0;
+    result.purchaseRoas = result.spent > 0 ? (result.purchases * 50) / result.spent : 0;
+    
+    return result;
+}
+
+// 3. 修复calculateTotalRow函数（字段匹配表格列）
+function calculateTotalRow(data) {
+    const total = {
+        budget: 0,
+        spent: 0,
+        clicks: 0,
+        impressions: 0,
+        cpm: 0,
+        cpc: 0,
+        ctr: 0,
+        addsToCart: 0,
+        checkoutsInitiated: 0,
+        addsPaymentInfo: 0,
+        purchases: 0,
+        purchaseRoas: 0,
+        cartCpa: 0,
+        checkoutCpa: 0,
+        paymentCpa: 0,
+        purchaseCpa: 0
+    };
+
+    // 汇总所有明细行数据
+    data.forEach(item => {
+        total.budget += item.budget || 0;
+        total.spent += item.spent || 0;
+        total.clicks += item.clicks || 0;
+        total.impressions += item.impressions || 0;
+        total.addsToCart += item.addsToCart || 0;
+        total.checkoutsInitiated += item.checkoutsInitiated || 0;
+        total.addsPaymentInfo += item.addsPaymentInfo || 0;
+        total.purchases += item.purchases || 0;
+        total.purchaseRoas += item.purchaseRoas || 0;
+    });
+
+    // 计算总计行的衍生指标（修复除以0）
+    total.cpm = total.impressions > 0 ? (total.spent / total.impressions) * 1000 : 0;
+    total.cpc = total.clicks > 0 ? total.spent / total.clicks : 0;
+    total.ctr = total.impressions > 0 ? (total.clicks / total.impressions) * 100 : 0;
+    total.cartCpa = total.addsToCart > 0 ? total.spent / total.addsToCart : 0;
+    total.checkoutCpa = total.checkoutsInitiated > 0 ? total.spent / total.checkoutsInitiated : 0;
+    total.paymentCpa = total.addsPaymentInfo > 0 ? total.spent / total.addsPaymentInfo : 0;
+    total.purchaseCpa = total.purchases > 0 ? total.spent / total.purchases : 0;
+
+    return total;
+}
+
+// 4. 修复renderDataTableB函数（兼容空数据和字段缺失）
+function renderDataTableB(data) {
+    const tableBody = document.getElementById('dataTableBodyB');
+    tableBody.innerHTML = '';
+    
+    // 处理空数据
+    if (!data || data.length === 0) {
+        const row = document.createElement('tr');
+        row.innerHTML = `<td colspan="16" style="text-align: center; padding: 40px; color: #999;">暂无数据</td>`;
+        tableBody.appendChild(row);
+        return;
+    }
+    
+    // 添加数据行
+    data.forEach(item => {
+        // 字段兜底（防止undefined）
+        const cartCpa = item.addsToCart > 0 ? item.spent / item.addsToCart : 0;
+        const checkoutCpa = item.checkoutsInitiated > 0 ? item.spent / item.checkoutsInitiated : 0;
+        const paymentCpa = item.addsPaymentInfo > 0 ? item.spent / item.addsPaymentInfo : 0;
+        const purchaseCpa = item.purchases > 0 ? item.spent / item.purchases : 0;
+        
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td class="date-column">${formatDate(item.date || '')}</td>
+            <td class="numeric-column">${formatNumber(item.budget || 0)}</td>
+            <td class="numeric-column">${formatNumber(item.spent || 0)}</td>
+            <td class="numeric-column">${formatNumber(item.clicks || 0)}</td>
+            <td class="numeric-column">${formatNumber(item.cpm || 0)}</td>
+            <td class="numeric-column">${formatNumber(item.cpc || 0)}</td>
+            <td class="numeric-column">${formatNumber(item.ctr || 0)}%</td>
+            <td class="numeric-column">${formatNumber(item.addsToCart || 0)}</td>
+            <td class="numeric-column">${formatNumber(cartCpa || 0)}</td>
+            <td class="numeric-column">${formatNumber(item.checkoutsInitiated || 0)}</td>
+            <td class="numeric-column">${formatNumber(checkoutCpa || 0)}</td>
+            <td class="numeric-column">${formatNumber(item.addsPaymentInfo || 0)}</td>
+            <td class="numeric-column">${formatNumber(paymentCpa || 0)}</td>
+            <td class="numeric-column">${formatNumber(item.purchases || 0)}</td>
+            <td class="numeric-column">${formatNumber(purchaseCpa || 0)}</td>
+            <td class="numeric-column">${formatNumber(item.purchaseRoas || 0)}</td>
+        `;
+        tableBody.appendChild(tr);
+    });
+    
+    // 计算并添加总计行
+    const totalRow = calculateTotalRow(data);
+    const totalTr = document.createElement('tr');
+    totalTr.className = 'summary-row'; // 统一使用summary-row类
+    totalTr.innerHTML = `
+        <td>总计</td>
+        <td class="numeric-column">${formatNumber(totalRow.budget || 0)}</td>
+        <td class="numeric-column">${formatNumber(totalRow.spent || 0)}</td>
+        <td class="numeric-column">${formatNumber(totalRow.clicks || 0)}</td>
+        <td class="numeric-column">${formatNumber(totalRow.cpm || 0)}</td>
+        <td class="numeric-column">${formatNumber(totalRow.cpc || 0)}</td>
+        <td class="numeric-column">${formatNumber(totalRow.ctr || 0)}%</td>
+        <td class="numeric-column">${formatNumber(totalRow.addsToCart || 0)}</td>
+        <td class="numeric-column">${formatNumber(totalRow.cartCpa || 0)}</td>
+        <td class="numeric-column">${formatNumber(totalRow.checkoutsInitiated || 0)}</td>
+        <td class="numeric-column">${formatNumber(totalRow.checkoutCpa || 0)}</td>
+        <td class="numeric-column">${formatNumber(totalRow.addsPaymentInfo || 0)}</td>
+        <td class="numeric-column">${formatNumber(totalRow.paymentCpa || 0)}</td>
+        <td class="numeric-column">${formatNumber(totalRow.purchases || 0)}</td>
+        <td class="numeric-column">${formatNumber(totalRow.purchaseCpa || 0)}</td>
+        <td class="numeric-column">${formatNumber(totalRow.purchaseRoas || 0)}</td>
+    `;
+    tableBody.appendChild(totalTr);
+}
+// 更新C区数据
+function updateSectionC() {
+    const tableBody = document.getElementById('dataTableBodyC');
+    tableBody.innerHTML = '';
+    
+    // 获取当前账号的网站数据并按日期降序排列
+    const accountWebsiteData = websiteData.filter(d => d.accountId === currentAccountId)
+                                          .sort((a, b) => new Date(b.date) - new Date(a.date));
+    
+    if (accountWebsiteData.length === 0) {
+        const row = document.createElement('tr');
+        row.innerHTML = `<td colspan="18" style="text-align: center; padding: 40px; color: #999;">暂无数据</td>`;
+        tableBody.appendChild(row);
+        return;
+    }
+    
+    accountWebsiteData.forEach(item => {
+        // 计算衍生字段
+        const arrivalRate = item.jumpIP > 0 ? Math.round((item.jumpIP / item.clicks) * 100) : 0;
+        const checkoutRate = item.totalIP > 0 ? Math.round((item.checkouts / item.totalIP) * 100) : 0;
+        const paymentRate = item.totalIP > 0 ? Math.round((item.purchases / item.totalIP) * 100) : 0;
+        const successRate = item.purchases > 0 ? Math.round((item.success / item.purchases) * 100) : 0;
+        const conversionRate = item.totalIP > 0 ? Math.round((item.success / item.totalIP) * 100) : 0;
+        const avgOrder = item.success > 0 ? Math.round(item.sales / item.success) : 0;
+        const roas = item.spent > 0 ? (item.sales / (item.spent * 7.2)).toFixed(1) : 0;
+        
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td class="date-column">${formatDate(item.date)}</td>
+            <td class="numeric-column editable" onclick="editCell(this, 'budget', '${item.id}')">${formatNumber(item.budget, 0)}</td>
+            <td class="numeric-column">${formatNumber(item.spent, 0)}</td>
+            <td class="numeric-column">${formatNumber(item.clicks, 0)}</td>
+            <td class="numeric-column editable" onclick="editCell(this, 'jumpIP', '${item.id}')">${formatNumber(item.jumpIP, 0)}</td>
+            <td class="numeric-column">${arrivalRate}%</td>
+            <td class="numeric-column editable" onclick="editCell(this, 'totalIP', '${item.id}')">${formatNumber(item.totalIP, 0)}</td>
+            <td class="numeric-column">${formatNumber(item.addsToCart, 0)}</td>
+            <td class="numeric-column">${formatNumber(item.checkouts, 0)}</td>
+            <td class="numeric-column">${checkoutRate}%</td>
+            <td class="numeric-column">${formatNumber(item.purchases, 0)}</td>
+            <td class="numeric-column">${paymentRate}%</td>
+            <td class="numeric-column editable" onclick="editCell(this, 'success', '${item.id}')">${formatNumber(item.success, 0)}</td>
+            <td class="numeric-column">${successRate}%</td>
+            <td class="numeric-column">${conversionRate}%</td>
+            <td class="numeric-column">${formatNumber(avgOrder, 0)}</td>
+            <td class="numeric-column editable" onclick="editCell(this, 'sales', '${item.id}')">${formatNumber(item.sales, 0)}</td>
+            <td class="numeric-column">${roas}</td>
+        `;
+        tableBody.appendChild(tr);
+    });
+}
+
+// 编辑C区单元格
+async function editCell(element, field, dataId) {
+    const currentValue = element.textContent.replace(/,/g, '');
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = currentValue;
+    
+    // 设置输入框样式
+    element.style.position = 'relative';
+    input.style.position = 'absolute';
+    input.style.top = '0';
+    input.style.left = '0';
+    input.style.width = '100%';
+    input.style.height = '100%';
+    input.style.border = '2px solid #3b82f6';
+    input.style.padding = '4px';
+    input.style.boxSizing = 'border-box';
+    input.style.textAlign = 'center';
+    input.style.font = 'inherit';
+    input.style.outline = 'none';
+    
+    element.textContent = '';
+    element.appendChild(input);
+    input.focus();
+    input.select();
+    
+   async function saveEdit() {
+    const newValue = parseFloat(input.value) || 0;
+    element.textContent = formatNumber(newValue, 0);
+
+    // 更新本地数据
+    const dataItem = websiteData.find(d => d.id === dataId);
+    if (dataItem) {
+        dataItem[field] = newValue;
+        
+        // ========== 关键修复：添加字段名映射 ==========
+        // 将驼峰式字段转换为数据库下划线字段
+        const dbDataItem = mapToDB(dataItem);
+        
+        // 保存到Supabase（使用转换后的字段名）
+        const { error } = await supabase
+            .from('fb_ad_website_data')
+            .upsert([dbDataItem]); // 替换原dataItem为dbDataItem
+        
+        if (error) {
+            console.error('保存数据失败:', error);
+            alert('保存失败: ' + error.message);
+            return;
+        }
+
+        // 重新渲染以更新计算字段
+        updateSectionC();
+    }
+
+    // 移除事件监听
+    input.removeEventListener('blur', saveEdit);
+    input.removeEventListener('keydown', handleKeyDown);
+}
+    
+    function handleKeyDown(e) {
+        if (e.key === 'Enter') {
+            saveEdit();
+        } else if (e.key === 'Escape') {
+            element.textContent = formatNumber(currentValue, 0);
+            input.removeEventListener('blur', saveEdit);
+            input.removeEventListener('keydown', handleKeyDown);
+        }
+    }
+    
+    input.addEventListener('blur', saveEdit);
+    input.addEventListener('keydown', handleKeyDown);
+}
+
+// 全自动CSV导入函数（按Ad name匹配/创建广告）
+async function handleDataImport(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async function(e) {
+        try {
+            // ========== 终极修复：强制按列号绑定CPM ==========
+            const HEADER_MAPPING = {
+                'Reporting starts': 'date',
+                'Ad name': 'ad_name',
+                'Ad delivery': 'ad_delivery',
+                '11': 'budget',
+                '13': 'spent',
+                '18': 'impressions',
+                'Link clicks': 'clicks',
+                '19': 'cpm',      // 强制第19列 = CPM
+                '21': 'cpc',      // 强制第21列 = CPC
+                '22': 'ctr',
+                'Adds to cart': 'adds_to_cart',
+                'Checkouts initiated': 'checkouts_initiated',
+                'Adds of payment info': 'adds_payment_info',
+                'Purchases': 'purchases',
+                'Purchase_roas': 'purchase_roas'
+            };
+
+            let csvContent = e.target.result;
+            if (csvContent.charCodeAt(0) === 0xFEFF) csvContent = csvContent.slice(1);
+            const delimiter = ',';
+            const lines = csvContent.replace(/\r/g, '').split('\n').filter(l => l.trim() !== '');
+            
+            if (lines.length < 2) { alert('CSV文件无有效数据！'); return; }
+            const rawHeaders = lines[0].split(delimiter).map(h => h.trim());
+
+            const colToDbField = {};
+            for (const [key, dbField] of Object.entries(HEADER_MAPPING)) {
+                let index;
+                if (!isNaN(parseInt(key))) {
+                    index = parseInt(key);
+                } else {
+                    index = rawHeaders.findIndex(h => h === key);
+                }
+                if (index >= 0 && index < rawHeaders.length) {
+                    colToDbField[index] = dbField;
+                }
+            }
+
+            console.log("最终匹配列：", colToDbField);
+
+            function cleanNumber(value) {
+                if (!value) return 0;
+                const cleaned = String(value).replace(/[^0-9.-]/g, '');
+                const num = parseFloat(cleaned);
+                return isNaN(num) ? 0 : num;
+            }
+
+            const adDataMap = new Map();
+            for (let i = 1; i < lines.length; i++) {
+                const values = lines[i].split(delimiter).map(v => v.trim());
+                if (values.length < rawHeaders.length) continue;
+
+                let adName = '';
+                const rowData = {};
+
+                for (let col = 0; col < values.length; col++) {
+                    const dbField = colToDbField[col];
+                    if (!dbField) continue;
+                    const rawValue = values[col];
+
+                    switch (dbField) {
+                        case 'date':
+                            rowData.date = rawValue ? new Date(rawValue).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+                            break;
+                        case 'ad_name':
+                            adName = rawValue;
+                            break;
+                        case 'budget': case 'spent': case 'cpm': case 'cpc': case 'purchase_roas':
+                            rowData[dbField] = cleanNumber(rawValue);
+                            break;
+                        case 'impressions': case 'clicks': case 'adds_to_cart': case 'checkouts_initiated': case 'adds_payment_info': case 'purchases':
+                            rowData[dbField] = parseInt(cleanNumber(rawValue)) || 0;
+                            break;
+                        case 'ctr':
+                            rowData.ctr = cleanNumber(rawValue);
+                            break;
+                        default:
+                            rowData[dbField] = rawValue;
+                    }
+                }
+                if (!adName || !rowData.date) continue;
+                if (!adDataMap.has(adName)) adDataMap.set(adName, []);
+                adDataMap.get(adName).push(rowData);
+            }
+
+            let totalImported = 0;
+            const currentAccount = accounts.find(acc => acc.id === currentAccountId);
+            if (!currentAccount) { alert('请先选择账号！'); return; }
+
+            for (const [adName, adRows] of adDataMap.entries()) {
+                let targetAd = ads.find(ad => ad.name === adName);
+                let adId = targetAd ? targetAd.id : null;
+
+                if (!adId) {
+                    const campaignName = `CSV导入_${currentAccount.name}`;
+                    let targetCampaign = campaigns.find(c => c.name === campaignName && c.accountId === currentAccountId);
+                    if (!targetCampaign) {
+                        targetCampaign = { id: 'camp_' + Date.now(), accountId: currentAccountId, name: campaignName, status: 'active', createdAt: new Date().toISOString() };
+                        campaigns.push(targetCampaign);
+                        await supabase.from('fb_ad_campaigns').upsert([mapToDB(targetCampaign)]);
+                    }
+                    const adSetName = `广告组_${adName.substring(0,20)}`;
+                    let targetAdSet = adSets.find(as => as.name === adSetName && as.campaignId === targetCampaign.id);
+                    if (!targetAdSet) {
+                        targetAdSet = { id: 'adset_' + Date.now(), campaignId: targetCampaign.id, name: adSetName, status: 'active', createdAt: new Date().toISOString() };
+                        adSets.push(targetAdSet);
+                        await supabase.from('fb_ad_ad_sets').upsert([mapToDB(targetAdSet)]);
+                    }
+                    const newAd = { id: 'ad_' + Date.now(), adSetId: targetAdSet.id, name: adName, status: 'active', createdAt: new Date().toISOString() };
+                    ads.push(newAd);
+                    await supabase.from('fb_ad_ads').upsert([mapToDB(newAd)]);
+                    adId = newAd.id;
+                }
+
+                const adDataItems = adRows.map((row, idx) => ({
+                    id: `data_${adId}_${row.date}_${idx}`,
+                    ad_id: adId,
+                    date: row.date,
+                    budget: row.budget || 0,
+                    spent: row.spent || 0,
+                    clicks: row.clicks || 0,
+                    impressions: row.impressions || 0,
+                    cpm: row.cpm || 0,
+                    cpc: row.cpc || 0,
+                    ctr: row.ctr || 0,
+                    adds_to_cart: row.adds_to_cart || 0,
+                    checkouts_initiated: row.checkouts_initiated || 0,
+                    adds_payment_info: row.adds_payment_info || 0,
+                    purchases: row.purchases || 0,
+                    purchase_roas: row.purchase_roas || 0
+                }));
+
+                const { error } = await supabase.from('fb_ad_data').upsert(adDataItems);
+                if (!error) totalImported += adDataItems.length;
+            }
+
+            if (totalImported > 0) {
+                alert(`✅ 导入成功！广告数据已正常录入`);
+                await loadDataFromStorage();
+    const uniqueDates = [...new Set(adData.map(d => d.date))];
+    for (const date of uniqueDates) {
+        updateWebsiteDataForDate(date);
+    }
+    // 保存网站数据并刷新 C 区
+    await saveAdDataToStorage();
+
+                renderCampaignTree();
+                updateSectionC();
+            } else {
+                alert('导入完成，但无数据更新');
+            }
+
+        } catch (err) {
+            console.error(err);
+            alert('导入失败：' + err.message);
+        } finally {
+            event.target.value = '';
+        }
+    };
+    reader.readAsText(file, 'UTF-8');
+}
+function updateWebsiteDataForDate(date) {
+    // 汇总当天当前账号下所有广告数据
+    const dayAdData = adData.filter(d => {
+        // 统一取 adId / ad_id
+        const adId = d.adId || d.ad_id;
+        if (!adId) return false;
+
+        // 找到广告
+        const ad = ads.find(a => a.id === adId);
+        if (!ad) return false;
+
+        // 找到广告组
+        const adSet = adSets.find(as => as.id === ad.adSetId);
+        if (!adSet) return false;
+
+        // 找到系列并校验账号
+        const campaign = campaigns.find(c => c.id === adSet.campaignId);
+        return campaign && campaign.accountId === currentAccountId && d.date === date;
+    });
+
+    const totalSpent = dayAdData.reduce((sum, d) => sum + (d.spent || 0), 0);
+    const totalClicks = dayAdData.reduce((sum, d) => sum + (d.clicks || 0), 0);
+    const totalAddsToCart = dayAdData.reduce((sum, d) => sum + (d.addsToCart || d.adds_to_cart || 0), 0);
+    const totalCheckouts = dayAdData.reduce((sum, d) => sum + (d.checkoutsInitiated || d.checkouts_initiated || 0), 0);
+    const totalPurchases = dayAdData.reduce((sum, d) => sum + (d.purchases || 0), 0);
+
+    // 查找或创建当天网站数据
+    let webData = websiteData.find(d => d.accountId === currentAccountId && d.date === date);
+    if (!webData) {
+        webData = {
+            id: `web_${currentAccountId}_${date}`,
+            accountId: currentAccountId,
+            date: date,
+            budget: Math.floor(totalSpent * 1.2),
+            spent: totalSpent,
+            clicks: totalClicks,
+            jumpIP: Math.floor(totalClicks * 0.7),
+            totalIP: Math.floor(totalClicks * 0.8),
+            addsToCart: totalAddsToCart,
+            checkouts: totalCheckouts,
+            purchases: totalPurchases,
+            success: Math.floor(totalPurchases * 0.9),
+            sales: totalPurchases * 50
+        };
+        websiteData.push(webData);
+    } else {
+        webData.spent = totalSpent;
+        webData.clicks = totalClicks;
+        webData.addsToCart = totalAddsToCart;
+        webData.checkouts = totalCheckouts;
+        webData.purchases = totalPurchases;
+    }
+}function formatDate(dateString) {
+    const date = new Date(dateString);
+    return date.toISOString().split('T')[0].replace(/-/g, '-');
+}
+
+// 格式化数字
+function formatNumber(num, decimals = 2) {
+    if (typeof num !== 'number' || isNaN(num)) return '0.00';
+    
+    // 向上取整到指定小数位
+    const factor = Math.pow(10, decimals);
+    const roundedNum = Math.ceil(num * factor) / factor;
+    
+    return roundedNum.toLocaleString('zh-CN', {
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals
+    });
+}
+
+// ========== 初始化代码 ==========
+// ========== 初始化代码 ==========
+document.addEventListener('DOMContentLoaded', async function() { // 新增async关键字
+    console.log('页面加载完成，开始初始化');
+    
+    // 关键修改：await等待数据加载完成，再执行后续操作
+    await loadDataFromStorage();
+    
+    // 此时accounts已从Supabase/本地缓存加载完成，渲染有效
+    renderAccountsPage();
+    
+    document.getElementById('campaignTree').addEventListener('dblclick', (e) => {
+        const nodeNameElement = e.target.closest('.node-name');
+        if (nodeNameElement) {
+            startEditNodeName(nodeNameElement);
+        }
+    });
+
+    // 绑定事件
+    document.getElementById('addAccountBtn').addEventListener('click', addNewAccount);
+    document.getElementById('backToAccountsBtn').addEventListener('click', showAccountsPage);
+    document.getElementById('addCampaignBtn').addEventListener('click', addNewCampaign);
+    document.getElementById('importDataFile').addEventListener('change', handleDataImport);
+
+    // 初始显示账号页面
+    showAccountsPage();
+    
+    console.log('初始化完成，账号数据已稳定加载');
+});
+
+// 确保函数在全局可用
+ window.addNewAccount = addNewAccount;
+ window.updateAccountName = updateAccountName;
+ window.updateAccountRemark = updateAccountRemark;
+ window.changeAccountStatus = changeAccountStatus;
+ window.addChildNode = addChildNode;
+ window.changeNodeStatus = changeNodeStatus;
+ window.toggleTreeNode = toggleTreeNode;
+ window.editCell = editCell;
+ window.startEditNodeName = startEditNodeName;
+ window.finishEditNodeName = finishEditNodeName;
+})();
+    </script>
+</body>
+</html>
+
