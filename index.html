@@ -2219,6 +2219,32 @@ document.addEventListener('DOMContentLoaded', async function() { // 新增async�
  window.finishEditNodeName = finishEditNodeName;
 })();
     </script>
+<script>
+// 禁止右键
+document.addEventListener('contextmenu', e => e.preventDefault());
+
+// 禁止选择、复制
+document.addEventListener('selectstart', e => e.preventDefault());
+document.addEventListener('copy', e => e.preventDefault());
+
+// 禁止查看源代码 F12 / Ctrl+U / Ctrl+Shift+I
+document.addEventListener('keydown', e => {
+  if (
+    e.key === 'F12' ||
+    (e.ctrlKey && e.key === 'u') ||
+    (e.ctrlKey && e.shiftKey && e.key === 'i')
+  ) {
+    e.preventDefault();
+  }
+});
+
+// 禁止保存网页 Ctrl+S
+document.addEventListener('keydown', e => {
+  if (e.ctrlKey && e.key === 's') {
+    e.preventDefault();
+  }
+});
+</script>
 </body>
 </html>
 
